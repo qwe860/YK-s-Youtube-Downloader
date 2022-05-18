@@ -1,0 +1,6 @@
+#OS Path files
+build/*
+dist/*
+__pycache__/*
+*.zip
+*.mp4

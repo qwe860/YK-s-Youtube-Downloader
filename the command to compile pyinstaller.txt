@@ -1,0 +1,1 @@
+pyinstaller --noconsole youtube_downloader.py
