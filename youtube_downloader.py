@@ -5,6 +5,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from pytube import YouTube
+from moviepy.editor import *
 import ctypes
 import validators
 import json
@@ -21,10 +22,13 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         self.setupUi(self)
         self.setWindowTitle("Kae's aWFuL Youtube Downloader!!?!?!")
         self.setWindowIcon(QtGui.QIcon('icon.png'))    
-        self.browseButton.clicked.connect(lambda index = 0: self.getDirectory())
+        self.browseButton.clicked.connect(lambda index = 0: self.getDirectory(self.destinationLineEdit, 'download'))
         self.downloadButton.clicked.connect(lambda index = 0: self.download())
         self.URLlineEdit.editingFinished.connect(lambda index = 0: self.Obtain_Info())
         self.downloadButton.setDisabled(True)
+
+        self.trimButton.clicked.connect(lambda index = 0: self.Trim())
+        self.browseButton_2.clicked.connect(lambda index = 0: self.getDirectory(self.vidPathLineEdit, 'trim'))
 
         self.SAVE_PATH = '/'
         
@@ -49,12 +53,29 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
             self.worker2.finished.connect(self.obtain_completed)
             
 
-    def getDirectory(self):
-        response = QFileDialog.getExistingDirectory(
-            self,
-            caption='Select a folder'
-        )
-        self.destinationLineEdit.setText(response)
+    def getDirectory(self, LineEdit, type):
+
+        if type == 'download':
+            response = QFileDialog.getExistingDirectory(
+                self,
+                caption='Select a folder'
+            )
+
+        else:
+             response = QFileDialog.getOpenFileName(
+                self,
+                caption='Select a file',
+                filter='Video file (*.mp4)'
+            )
+             LineEdit.setText(response[0])
+             response = response[0]
+             self.readVideoFile(response)
+        '''try:
+            LineEdit.setText(response)
+        except:
+            LineEdit.setText(response[0])
+            self.readVideoFile(response[0])'''
+
         self.SAVE_PATH = response
         print(response)
 
@@ -109,10 +130,46 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         QMessageBox.critical(self, 'Error', 
         'An unknown error occured. Please rectify it. I dunno what is going on. I just know that IT''S AN ERROR!: ' + error,
         QMessageBox.Ok)
+        
     def ChangeTitle(self, title):
-
         title = '<html><head/><body><p><span style=\" color:#008200;\">' + title+'</span></p></body></html>'
         self.titleLabel.setText(title)
+
+    def UpdateDuration(self, clip_duration):
+        print('clip duration: ', clip_duration)
+        mins = clip_duration / 60
+        secs = clip_duration % 60
+        self.endMinSpinBox.setValue(mins)
+        self.endMinSpinBox.setMaximum(mins)
+        self.startMinSpinBox.setMaximum(mins)
+        self.startSecSpinBox.setMaximum(secs)
+        self.endSecSpinBox.setValue(secs)
+        self.endSecSpinBox.setMaximum(secs)
+
+
+    def readVideoFile(self, path):
+        self.LoadVidWorker = LoadVideoThread(path)
+        self.LoadVidWorker.start()
+        self.LoadVidWorker.clip_duration.connect(self.UpdateDuration)
+        self.LoadVidWorker.finished.connect(self.TrimCompleted)
+
+
+    def TrimCompleted(self):
+        QMessageBox.information(self, 'Information', "Trim Complete!", QMessageBox.Ok)
+
+    def Trim(self):
+        print('trim')
+        start_min = self.startMinSpinBox.value()
+        start_sec = self.startSecSpinBox.value()
+        end_min = self.endMinSpinBox.value()
+        end_sec = self.endSecSpinBox.value()
+
+        start = start_min*60 + start_sec
+        end = end_min*60 + end_sec
+
+        self.trimWorker = Worker3Thread(self.SAVE_PATH, start, end)
+        self.trimWorker.start()
+        self.trimWorker.finished.connect(self.TrimCompleted)
 
 class Worker2Thread(QThread):
     items = pyqtSignal(list)
@@ -163,8 +220,6 @@ class Worker2Thread(QThread):
             print(self.url)
             self.error_message.emit(e)
             
-        
-        
 
 
 class WorkerThread(QThread):
@@ -179,7 +234,6 @@ class WorkerThread(QThread):
         self.itag = itag
 
     def run(self):
-        #link  = self.url
        
         try: 
             yt = YouTube(self.url, on_progress_callback=self.progress_function)
@@ -196,15 +250,44 @@ class WorkerThread(QThread):
             e = str(e)
             print(e)
             self.error_message.emit(e)
-            #self.terminate()
 
     def progress_function(self, chunk, file_handle, bytes_remaining):
-        #print(round((1-bytes_remaining/stream.filesize)*100, 3), '% done...')
 
         progress = round((1 - (bytes_remaining/filesize)) * 100 ,0)
         progress = int(progress)
         self.download_progress.emit(progress)
         print(progress)
+        
+class LoadVideoThread(QThread):
+    clip_duration = pyqtSignal(float)
+
+    def __init__(self, file_path):
+        super(LoadVideoThread, self).__init__()
+        self.file_path = file_path
+
+    def run(self):
+        clip = VideoFileClip(self.file_path)
+        duration = clip.duration
+        self.clip_duration.emit(duration)
+
+
+class Worker3Thread(QThread):
+    global start_time
+    global end_time
+
+    def __init__(self, file_path, start, end):
+        super(Worker3Thread, self).__init__()
+        self.start_time = start
+        self.file_path = file_path
+        self.end_time = end
+
+    def run(self):        
+        print('start_time: ', self.start_time)
+        print('end_time: ', self.end_time)
+        clip = VideoFileClip(self.file_path)
+        clip = clip.cutout(self.start_time, self.end_time)
+        clip.write_videofile("edited.mp4")
+
 
 
 if __name__ == "__main__":
