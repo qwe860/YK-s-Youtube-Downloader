@@ -10,11 +10,21 @@ import ctypes
 import validators
 import json
 
+from proglog import ProgressBarLogger
+
+
+
 proxy_handler = {
 "http": "http://10.110.6.6:8080",
 'https': 'https://10.110.6.6:8080'
 }
 #compat.install_proxy(proxy_handler)
+
+class Stream(QtCore.QObject):
+    newText = QtCore.pyqtSignal(str)
+
+    def write(self, text):
+        self.newText.emit(str(text))
 
 class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
     def __init__(self):
@@ -31,7 +41,6 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         self.browseButton_2.clicked.connect(lambda index = 0: self.getDirectory(self.vidPathLineEdit, 'trim'))
 
         self.SAVE_PATH = '/'
-        
 
     def Obtain_Info(self):
 
@@ -69,12 +78,10 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
             )
              LineEdit.setText(response[0])
              response = response[0]
-             self.readVideoFile(response)
-        '''try:
-            LineEdit.setText(response)
-        except:
-            LineEdit.setText(response[0])
-            self.readVideoFile(response[0])'''
+
+             if response != '':
+                self.readVideoFile(response)
+
 
         self.SAVE_PATH = response
         print(response)
@@ -142,9 +149,9 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         self.endMinSpinBox.setValue(mins)
         self.endMinSpinBox.setMaximum(mins)
         self.startMinSpinBox.setMaximum(mins)
-        self.startSecSpinBox.setMaximum(secs)
+        #self.startSecSpinBox.setMaximum(secs)
         self.endSecSpinBox.setValue(secs)
-        self.endSecSpinBox.setMaximum(secs)
+        #self.endSecSpinBox.setMaximum(secs)
 
 
     def readVideoFile(self, path):
@@ -169,7 +176,12 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
 
         self.trimWorker = Worker3Thread(self.SAVE_PATH, start, end)
         self.trimWorker.start()
+        self.trimWorker.progress.connect(self.UpdateProgressBar)
+        self.trimWorker.error_message.connect(self.ErrorMsg)
+        self.trimWorker.progress_message.connect(self.ChangeTitle)
         self.trimWorker.finished.connect(self.TrimCompleted)
+
+
 
 class Worker2Thread(QThread):
     items = pyqtSignal(list)
@@ -258,6 +270,7 @@ class WorkerThread(QThread):
         self.download_progress.emit(progress)
         print(progress)
         
+        
 class LoadVideoThread(QThread):
     clip_duration = pyqtSignal(float)
 
@@ -271,9 +284,33 @@ class LoadVideoThread(QThread):
         self.clip_duration.emit(duration)
 
 
+class MyBarLogger(ProgressBarLogger):
+    def __init__(self, progress, progress_message):
+        self.progress = progress
+        self.progress_message = progress_message
+        super(MyBarLogger, self).__init__()
+
+    def callback(self, **changes):
+        # Every time the logger is updated, this function is called with
+        # the `changes` dictionnary of the form `parameter: new value`.
+        for (parameter, new_value) in changes.items():
+            print ('Parameter %s is now %s' % (parameter, new_value))
+            self.progress_message.emit(new_value)
+
+        bars = self.state.get('bars')
+        index = len(bars.values()) - 1
+        if index > -1:
+            bar = list(bars.values())[index]
+            progress = int(bar['index'] / bar['total'] * 100)
+            self.progress.emit(progress)
+
 class Worker3Thread(QThread):
     global start_time
     global end_time
+
+    progress = pyqtSignal(int)    
+    progress_message = pyqtSignal(str)
+    error_message = pyqtSignal(str)
 
     def __init__(self, file_path, start, end):
         super(Worker3Thread, self).__init__()
@@ -284,10 +321,34 @@ class Worker3Thread(QThread):
     def run(self):        
         print('start_time: ', self.start_time)
         print('end_time: ', self.end_time)
-        clip = VideoFileClip(self.file_path)
-        clip = clip.cutout(self.start_time, self.end_time)
-        clip.write_videofile("edited.mp4")
 
+        logger = MyBarLogger(self.progress, self.progress_message)
+
+        try:
+            clip = VideoFileClip(self.file_path)
+            clip = clip.subclip(self.start_time, self.end_time)
+            fil = self.file_path + '_edited.mp4'
+            clip.write_videofile(fil, logger=logger)
+        except Exception as e:
+            self.error_message.emit(str(e))
+
+
+'''class MyBarLogger(ProgressBarLogger):
+    actions_list = []
+
+    def __init__(self, message, progress):
+        self.message = message
+        self.progress = progress
+        super(MyBarLogger, self).__init__()
+
+    def callback(self, **changes):
+        bars = self.state.get('bars')
+        index = len(bars.values()) - 1
+        if index > -1:
+            bar = list(bars.values())[index]
+            progress = int(bar['index'] / bar['total'] * 100)
+            self.progress.emit(progress)
+        if 'message' in changes: self.message.emit(changes['message'])'''
 
 
 if __name__ == "__main__":
