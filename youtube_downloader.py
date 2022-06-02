@@ -39,8 +39,13 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
 
         self.trimButton.clicked.connect(lambda index = 0: self.Trim())
         self.browseButton_2.clicked.connect(lambda index = 0: self.getDirectory(self.vidPathLineEdit, 'trim'))
+        self.endSecSpinBox.valueChanged.connect(lambda index = 0: self.Check_Value())
+        self.endMinSpinBox.valueChanged.connect(lambda index = 0: self.Check_Value())
 
+        self.clipMaxMinutes = 0
+        self.clipMaxSeconds = 0
         self.SAVE_PATH = '/'
+        self.isLoadingFromFileFlag = True
 
     def Obtain_Info(self):
 
@@ -117,7 +122,16 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
             QMessageBox.critical(self, 'Error', 
             'Please make sure the URL is valid!',
             QMessageBox.Ok)
-        
+
+    def Check_Value(self):
+        if not self.isLoadingFromFileFlag:
+            print('flag triggered')
+            if self.endMinSpinBox.value() == self.clipMaxMinutes:
+                self.endSecSpinBox.setMaximum(int(self.clipMaxSeconds))
+                print('maximum set')
+            else:
+                self.endSecSpinBox.setMaximum(59)
+
     def UpdateItemList(self, items):
         self.comboBox.clear()
         self.comboBox.addItems(items)
@@ -146,12 +160,17 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         print('clip duration: ', clip_duration)
         mins = clip_duration / 60
         secs = clip_duration % 60
-        self.endMinSpinBox.setValue(mins)
         self.endMinSpinBox.setMaximum(mins)
         self.startMinSpinBox.setMaximum(mins)
-        #self.startSecSpinBox.setMaximum(secs)
+        self.endMinSpinBox.setValue(mins)
         self.endSecSpinBox.setValue(secs)
-        #self.endSecSpinBox.setMaximum(secs)
+
+        self.clipMaxMinutes = int(mins)
+        print('secs: ', int(secs))
+        self.clipMaxSeconds = int(secs)
+        self.endSecSpinBox.setMaximum(int(self.clipMaxSeconds))
+
+        self.isLoadingFromFileFlag = True
 
 
     def readVideoFile(self, path):
@@ -163,6 +182,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
 
     def TrimCompleted(self):
         QMessageBox.information(self, 'Information', "Trim Complete!", QMessageBox.Ok)
+        self.isLoadingFromFileFlag = False
 
     def Trim(self):
         print('trim')
@@ -230,7 +250,8 @@ class Worker2Thread(QThread):
         except Exception as e:
             e = str(e)
             print(self.url)
-            self.error_message.emit(e)
+            print(e)
+            self.error_message.emit('nabei ' + e)
             
 
 
@@ -327,7 +348,8 @@ class Worker3Thread(QThread):
         try:
             clip = VideoFileClip(self.file_path)
             clip = clip.subclip(self.start_time, self.end_time)
-            fil = self.file_path + '_edited.mp4'
+            fil = self.file_path.replace('.mp4','')
+            fil = fil + '_edited.mp4'
             clip.write_videofile(fil, logger=logger)
         except Exception as e:
             self.error_message.emit(str(e))
