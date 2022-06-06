@@ -190,11 +190,12 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
         start_sec = self.startSecSpinBox.value()
         end_min = self.endMinSpinBox.value()
         end_sec = self.endSecSpinBox.value()
+        rotation = self.rotationSpinBox.value()
 
         start = start_min*60 + start_sec
         end = end_min*60 + end_sec
 
-        self.trimWorker = Worker3Thread(self.SAVE_PATH, start, end)
+        self.trimWorker = Worker3Thread(self.SAVE_PATH, start, end, rotation)
         self.trimWorker.start()
         self.trimWorker.progress.connect(self.UpdateProgressBar)
         self.trimWorker.error_message.connect(self.ErrorMsg)
@@ -333,11 +334,12 @@ class Worker3Thread(QThread):
     progress_message = pyqtSignal(str)
     error_message = pyqtSignal(str)
 
-    def __init__(self, file_path, start, end):
+    def __init__(self, file_path, start, end, rotation):
         super(Worker3Thread, self).__init__()
         self.start_time = start
         self.file_path = file_path
         self.end_time = end
+        self.rotation = rotation
 
     def run(self):        
         print('start_time: ', self.start_time)
@@ -348,6 +350,7 @@ class Worker3Thread(QThread):
         try:
             clip = VideoFileClip(self.file_path)
             clip = clip.subclip(self.start_time, self.end_time)
+            clip = clip.rotate(self.rotation)
             fil = self.file_path.replace('.mp4','')
             fil = fil + '_edited.mp4'
             clip.write_videofile(fil, logger=logger)

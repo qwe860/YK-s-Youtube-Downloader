@@ -90,10 +90,18 @@ class Ui_MainWindow(object):
         self.startSecSpinBox.setObjectName("startSecSpinBox")
         self.endSecSpinBox = QtWidgets.QSpinBox(self.groupBox)
         self.endSecSpinBox.setGeometry(QtCore.QRect(439, 50, 50, 22))
+        self.endSecSpinBox.setMaximum(69)
         self.endSecSpinBox.setObjectName("endSecSpinBox")
         self.endMinSpinBox = QtWidgets.QSpinBox(self.groupBox)
         self.endMinSpinBox.setGeometry(QtCore.QRect(370, 50, 50, 22))
         self.endMinSpinBox.setObjectName("endMinSpinBox")
+        self.label_8 = QtWidgets.QLabel(self.groupBox)
+        self.label_8.setGeometry(QtCore.QRect(210, 50, 51, 16))
+        self.label_8.setObjectName("label_8")
+        self.rotationSpinBox = QtWidgets.QSpinBox(self.groupBox)
+        self.rotationSpinBox.setGeometry(QtCore.QRect(255, 50, 50, 22))
+        self.rotationSpinBox.setMaximum(360)
+        self.rotationSpinBox.setObjectName("rotationSpinBox")
         MainWindow.setCentralWidget(self.centralwidget)
         self.menubar = QtWidgets.QMenuBar(MainWindow)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 520, 21))
@@ -124,6 +132,7 @@ class Ui_MainWindow(object):
         self.label_7.setText(_translate("MainWindow", "End"))
         self.label_4.setText(_translate("MainWindow", "Video"))
         self.trimButton.setText(_translate("MainWindow", "Trim Video"))
+        self.label_8.setText(_translate("MainWindow", "Rotation"))
 
 
 if __name__ == "__main__":
