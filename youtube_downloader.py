@@ -74,6 +74,7 @@ class MainWindow(QtWidgets.QMainWindow, QtWidgets.QWidget, Ui_MainWindow):
                 self,
                 caption='Select a folder'
             )
+            LineEdit.setText(response)
 
         else:
              response = QFileDialog.getOpenFileName(
